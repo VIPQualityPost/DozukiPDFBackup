@@ -1,5 +1,5 @@
 # Program for crawling Dozuki sites and exporting guides in PDF
-# format while retaining online file-structure.
+# format while retaining perceived file-structure.
 # Released 03/22/2020 Matei Jordache
 #
 from selenium import webdriver
