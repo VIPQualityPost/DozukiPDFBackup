@@ -1,18 +1,18 @@
 # Program for crawling Dozuki sites and exporting guides in PDF
-# format while retaining perceived file-structure.
+# format while retaining online file-structure.
 # Released 03/22/2020 Matei Jordache
 #
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 import time, bs4, requests, os
 #
-browser = webdriver.Firefox()
-dozukiurl = "https://company.dozuki.com" # URL to start collecting guides at. Use root directory to get all.
-dozukiemail = "name@work.com" # Email for login
-dozukipwd = "dozukipassword" # Password for login
-dirpath = ["/tmp/DozukiBackup/"] # First element of list is root path of backups
-
-# Waiting routine, still needs work (document.readyState return "complete" before finishing jams up timing)
+windows = True
+browser = webdriver.Firefox() #choose chrome if you want, use webdriver.Chrome()
+dozukiurl = "https://org.dozuki.com" #Domain to start collecting guides at. Use root directory to get all.
+dozukiemail = "dozuki@org.com" # Email for login
+dozukipwd = "dozukipwd" # Password for login
+dirpath = [r"C:\Users\Dozuki\BackupGuides"] # List of strings to tell where we are in the file tree
+# Waiting routine, still needs work (document.readyState return "complete" before finishing)
 def waitload():
     time.sleep(3)
     #wait = WebDriverWait(browser, 10)
@@ -24,31 +24,31 @@ def waitload():
 # Reouting to fix filepath
 def appendpath(cattag):
     global dirpath, soup
-    soup = bs4.BeautifulSoup(browser.page_source, features="html.parser") # Get HTML from page
+    soup = bs4.BeautifulSoup(browser.page_source, features="html.parser") #Get HTML from page
     try:
-        categorytitle = soup.find(cattag).text  # Find the title of category or guide
+        categorytitle = soup.find(cattag).text  #Find the title of category or guide
     except AttributeError:
         waitload()
         appendpath(cattag) # Retry to make the soup
-    categorytitle = categorytitle.strip() # Remove whitespace
-    dirpath.append(dirpath[-1] + categorytitle.replace('/','_').replace(' ', '') + '/') #Format name and add to directory
+    categorytitle = categorytitle.strip().replace('/','').replace(' ', '_') #Remove whitespace and format
+    dirpath.append(os.path.join(dirpath[-1], categorytitle))
 # Category routine
 def categoryscrape():
     global dirpath, soup
     appendpath('h1')
     subcategory = browser.find_elements_by_class_name('categoryAnchor') #see if there are subcategories
     waitload()
-    for i in range(len(subcategory)): # Run through all subcategories
+    for i in range(len(subcategory)): #run through all subcategories
         try:
-            browser.find_elements_by_class_name('categoryAnchor')[i].click() # Choose a category
+            browser.find_elements_by_class_name('categoryAnchor')[i].click() #choose a category
             waitload()
-            categoryscrape() # Repeat to check for more subcategories
-        except IndexError: # Catch if try to click before page loaded fully
+            categoryscrape() #Repeat to check for more subcategories
+        except IndexError: #Catch if try to click before page loaded fully
             waitload() # Wait and then try again
-            i = i-1 # So we don't jump to the next element after catch error
+            i = i-1 #So we don't jump to the next element after catch error
     waitload()
-    # Sifting guides from other content
-    guide = browser.find_elements_by_class_name('cell') # Discover how many guides to set length
+    #Sifting guides from other content
+    guide = browser.find_elements_by_class_name('cell') #discover how many guides
     waitload()
     for j in range(len(guide)): # Run through all the perceived guides
         try:
@@ -65,27 +65,27 @@ def categoryscrape():
                 else: # Not a guide, some other embedded content
                     browser.execute_script("window.history.go(-1)")
                     waitload()
-        except IndexError: # Catch if try to choose element before page fully loaded
+        except IndexError: #Catch if try to choose element before page fully loaded
             waitload()
             j = j-1 # So we don't skip any elements after catching error
             continue
     browser.execute_script("window.history.go(-1)") # Go up a directory in the filepath on Dozuki
-    dirpath.pop(-1) # Go up a directory in the filepath for storage
+    dirpath.pop(-1) #Go up a directory in the filepath for storage
     waitload()
 #Guide routine
 def guidescrape():
     global dirpath, soup
-    appendpath('h1') # Create filename append to path
+    appendpath('h1') #Get unique guide title add to path
     browser.find_element_by_link_text('Options').click()
     browser.find_element_by_link_text('Download PDF').click()
-    dlurl = browser.current_url # Pass url to requests to download outside browser
+    dlurl = browser.current_url #pass url to requests to download outside browser
     response = requests.get(dlurl)
     guidepath = dirpath[-1] # Chop off / to add file extension
     os.makedirs(dirpath[-2], exist_ok=True) # Check if directory exists and create if not there
-    with open(guidepath[:-1] + ".pdf", 'wb') as f:
+    with open(guidepath + ".pdf", 'wb') as f:
         f.write(response.content) # Write .pdf to file
-    print(guidepath[:-1] + ".pdf") # So we can see what guides got processed
-    dirpath.pop(-1) # Stop specifying this guide
+    print(guidepath + ".pdf") #So we can see what guides got processed
+    dirpath.pop(-1) # Stop specifying this guide as path
     browser.execute_script("window.history.go(-2)") # Go back to parent directory from PDF page
     waitload()
 # Login and initialization
